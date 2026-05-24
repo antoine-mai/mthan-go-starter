@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -e
+
+# Resolve the absolute path to the project root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
+
+ACTION="${1:-build-app}"
+
+case "$ACTION" in
+	build-app)
+		if [ ! -d "client" ]; then
+			echo "Error: 'client/' directory not found."
+			exit 1
+		fi
+		# Auto-install dependencies if node_modules is missing
+		if [ ! -d "client/node_modules" ]; then
+			echo "Installing public client dependencies..."
+			npm install --prefix client
+		fi
+		echo "Building React public client..."
+		npm run build --prefix client
+		echo "React public client built successfully. Static files are located in: client/build"
+		;;
+	build-admin)
+		ADMIN_DIR="app/mods/admin/client"
+		if [ ! -d "$ADMIN_DIR" ]; then
+			echo "Error: Admin client directory '$ADMIN_DIR' not found."
+			exit 1
+		fi
+		# Auto-install dependencies if node_modules is missing
+		if [ ! -d "$ADMIN_DIR/node_modules" ]; then
+			echo "Installing admin client dependencies..."
+			npm install --prefix "$ADMIN_DIR"
+		fi
+		echo "Building React admin client..."
+		npm run build --prefix "$ADMIN_DIR"
+		echo "React admin client built successfully. Static files are located in: $ADMIN_DIR/build"
+		;;
+	dev-app)
+		if [ ! -d "client" ]; then
+			echo "Error: 'client/' directory not found."
+			exit 1
+		fi
+		if [ ! -d "client/node_modules" ]; then
+			npm install --prefix client
+		fi
+		echo "Running public client dev server..."
+		npm run dev --prefix client
+		;;
+	dev-admin)
+		ADMIN_DIR="app/mods/admin/client"
+		if [ ! -d "$ADMIN_DIR" ]; then
+			echo "Error: Admin client directory '$ADMIN_DIR' not found."
+			exit 1
+		fi
+		if [ ! -d "$ADMIN_DIR/node_modules" ]; then
+			npm install --prefix "$ADMIN_DIR"
+		fi
+		echo "Running admin client dev server..."
+		npm run dev --prefix "$ADMIN_DIR"
+		;;
+	*)
+		echo "Usage: $0 {build-app|build-admin|dev-app|dev-admin}"
+		exit 1
+		;;
+esac

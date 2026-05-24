@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Xác định message commit (nếu không có thì lấy mặc định)
+MSG="${1:-Cập nhật hệ thống $(date '+%Y-%m-%d %H:%M')}"
+
+# Thực thi các lệnh git
+echo "Đang gom toàn bộ thay đổi..."
+git add .
+
+echo "Đang khởi tạo commit với nội dung: $MSG"
+git commit -m "$MSG"
+
+echo "Đang đẩy code lên hệ thống..."
+git push
+
+echo "Hoàn tất đẩy code!"

@@ -1,0 +1,24 @@
+# Mthan App Configuration Template
+app:
+  name: "mthan-app"
+
+server:
+  env: "development"
+  port: "8080"
+
+# Client Serving
+# If set to true, the Go server will host the built React static files from client/build.
+client: false
+
+# Database Settings
+database:
+  driver: "sqlite"
+  url: ""
+
+# Admin Panel Settings
+# The admin panel is activated only if all three values are defined and non-empty.
+admin:
+  active: true
+  path: "/admin"
+  user: "admin"
+  pass: "admin@123"

@@ -24,8 +24,15 @@ profile.cov
 go.work
 go.work.sum
 
-# env file
+# Config files
 .env
+config/config.yaml
+
+# Storage folder
+storage/
+
+# Build folder
+build/
 
 # Editor/IDE
 # .idea/

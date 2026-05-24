@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+set -e
+
+# Resolve the absolute path to the project root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$ROOT_DIR"
+
+ACTION="${1:-dev}"
+
+generate_main() {
+	# Check if admin module folder exists
+	HAS_ADMIN=false
+	if [ -d "app/mods/admin" ]; then
+		HAS_ADMIN=true
+	fi
+
+	echo "Generating main.go..."
+
+	# Start generating main.go
+	cat << 'EOF' > main.go
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"mthan-go-starter/app/config"
+	"mthan-go-starter/app/mods"
+EOF
+
+	if [ "$HAS_ADMIN" = true ]; then
+		echo '	"mthan-go-starter/app/mods/admin"' >> main.go
+	fi
+
+	cat << 'EOF' >> main.go
+	"mthan-go-starter/app/routes/api"
+	"mthan-go-starter/app/routes/api/hello"
+	"mthan-go-starter/app/routes/post/action"
+	"mthan-go-starter/app/services"
+)
+
+func main() {
+	// 1. Load application configuration
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		fmt.Printf("Failed to load configuration: %v\n", err)
+		os.Exit(1)
+	}
+
+	// 2. Initialize Logger Service
+	logger := services.NewLoggerService(cfg.Env)
+	logger.Info("Configuration loaded successfully")
+
+	// 3. Initialize layers
+	svc := services.NewProcessService()
+	mux := http.NewServeMux()
+	
+	// Register individual route packages
+	api.Register(mux, svc, logger)
+	hello.Register(mux, svc, logger)
+	action.Register(mux, svc, logger)
+	
+EOF
+
+	if [ "$HAS_ADMIN" = true ]; then
+		cat << 'EOF' >> main.go
+	if cfg.AdminActive && cfg.AdminPath != "" && cfg.AdminUser != "" && cfg.AdminPass != "" {
+		admin.Register(mux, svc, logger, cfg)
+	} else {
+		logger.Info("Admin Panel is disabled (admin.active is false or missing credentials in config)")
+	}
+EOF
+	else
+		echo '	logger.Info("Admin Panel is not compiled in this build")' >> main.go
+	fi
+
+	cat << 'EOF' >> main.go
+
+	// Serve React client if enabled, otherwise register fallback landing page
+	if cfg.Client {
+		logger.Info("Serving client static files", "path", cfg.ClientBuildPath)
+		fs := http.Dir(cfg.ClientBuildPath)
+		fileServer := http.FileServer(fs)
+
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			f, err := fs.Open(r.URL.Path)
+			if err != nil {
+				// File does not exist, serve index.html for SPA routing fallback
+				http.ServeFile(w, r, filepath.Join(cfg.ClientBuildPath, "index.html"))
+				return
+			}
+			f.Close()
+			fileServer.ServeHTTP(w, r)
+		})
+	} else {
+		mods.Register(mux, svc, logger)
+	}
+
+	// 4. Setup HTTP Server
+	server := &http.Server{
+		Addr:         ":" + cfg.Port,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// 5. Handle Graceful Shutdown
+	serverCtx, serverStopCtx := context.WithCancel(context.Background())
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	
+	go func() {
+		<-sigChan
+		logger.Info("Shutting down server gracefully...")
+
+		// Shutdown context with a 10 second timeout limit
+		shutdownCtx, shutdownCancel := context.WithTimeout(serverCtx, 10*time.Second)
+		defer shutdownCancel()
+
+		go func() {
+			<-shutdownCtx.Done()
+			if shutdownCtx.Err() == context.DeadlineExceeded {
+				logger.Error("Graceful shutdown timed out. Forcing exit.")
+				os.Exit(1)
+			}
+		}()
+
+		// Trigger shutdown
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			logger.Error("HTTP server Shutdown failed", "error", err)
+			os.Exit(1)
+		}
+		serverStopCtx()
+	}()
+
+	// 6. Start HTTP Server
+	logger.Info("Server is running", "addr", server.Addr, "mode", cfg.Env)
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		logger.Error("ListenAndServe failed to start", "error", err)
+		os.Exit(1)
+	}
+
+	// Wait for shutdown goroutine to finish cleaning up
+	<-serverCtx.Done()
+	logger.Info("Server stopped cleanly")
+}
+EOF
+
+	echo "main.go generated successfully."
+}
+
+case "$ACTION" in
+	dev)
+		echo "Starting application in development mode..."
+		
+		# Warning message if client dependencies need to be installed
+		if [ -d "client" ] && [ ! -d "client/node_modules" ]; then
+			echo "------------------------------------------------------------------------"
+			echo "WARNING: client/node_modules is missing."
+			echo "Please run 'npm install' inside the 'client/' directory before launching dev."
+			echo "------------------------------------------------------------------------"
+		fi
+
+		# 1. Start Go server
+		generate_main
+		go run main.go "${@:2}" &
+		GO_PID=$!
+
+		# 2. Start React Vite server (if node_modules exists)
+		CLIENT_PID=""
+		if [ -d "client" ] && [ -d "client/node_modules" ]; then
+			echo "Starting React client dev server on port 3000..."
+			npm run dev --prefix client &
+			CLIENT_PID=$!
+		fi
+
+		# Clean process termination handler
+		cleanup() {
+			echo ""
+			echo "Stopping development servers..."
+			if [ -n "$GO_PID" ]; then
+				kill "$GO_PID" 2>/dev/null || true
+			fi
+			if [ -n "$CLIENT_PID" ]; then
+				kill "$CLIENT_PID" 2>/dev/null || true
+			fi
+			exit 0
+		}
+
+		trap cleanup SIGINT SIGTERM EXIT
+		wait
+		;;
+	run)
+		if [ ! -f "build/mthan-app" ]; then
+			echo "Error: Binary 'build/mthan-app' not found. Please compile the app first with: ./scripts/app build"
+			exit 1
+		fi
+		echo "Running compiled application..."
+		exec ./build/mthan-app "${@:2}"
+		;;
+	test)
+		echo "Running Go tests..."
+		go test -v ./...
+		;;
+	build)
+		# Create the build destination folder
+		mkdir -p build
+
+		# Dynamically generate main.go based on active modules
+		generate_main
+
+		echo "Compiling application..."
+		go build -o build/mthan-app main.go
+
+		echo "Compilation successful. Binary located at: build/mthan-app"
+		;;
+	*)
+		echo "Usage: $0 {dev|run|test|build}"
+		exit 1
+		;;
+esac
