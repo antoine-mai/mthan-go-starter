@@ -174,9 +174,9 @@ func LoadConfig() (*Config, error) {
 
 	dbDriver := getEnv("DB_DRIVER", "sqlite")
 	dbUrl := getEnv("DB_URL", "")
-	// If SQLite is selected and URL is empty, automatically place db.sqlite in the resolved storage directory
+	// If SQLite is selected and URL is empty, automatically place db.sqlite in the resolved storage/data directory
 	if dbUrl == "" && dbDriver == "sqlite" {
-		dbUrl = filepath.Join(storageDirPath, "db.sqlite")
+		dbUrl = filepath.Join(storageDirPath, "data", "db.sqlite")
 	}
 
 	// 9. Populate and return Config struct with environment variables (using defaults if necessary)

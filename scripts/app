@@ -102,7 +102,15 @@ func main() {
 	logger := services.NewLoggerService(cfg.Env)
 	logger.Info("Configuration loaded successfully")
 
-	// 3. Initialize layers
+	// 3. Initialize Database Service
+	dbSvc := services.NewDatabaseService(cfg, logger)
+	if _, err := dbSvc.Connect(); err != nil {
+		logger.Error("Failed to initialize database", "error", err)
+		os.Exit(1)
+	}
+	defer dbSvc.Close()
+
+	// 4. Initialize layers
 	svc := services.NewProcessService()
 	mux := http.NewServeMux()
 	
@@ -224,7 +232,7 @@ EOF
 
 	cat << 'EOF' >> main.go
 
-	// 4. Setup HTTP Server
+	// 5. Setup HTTP Server
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      mux,
@@ -233,7 +241,7 @@ EOF
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// 5. Handle Graceful Shutdown
+	// 6. Handle Graceful Shutdown
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 
 	sigChan := make(chan os.Signal, 1)
@@ -263,7 +271,7 @@ EOF
 		serverStopCtx()
 	}()
 
-	// 6. Start HTTP Server
+	// 7. Start HTTP Server
 	logger.Info("Server is running", "addr", server.Addr, "mode", cfg.Env)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("ListenAndServe failed to start", "error", err)
