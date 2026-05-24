@@ -9,7 +9,7 @@ import (
 )
 
 // Register mounts the POST /post/action route on the multiplexer.
-func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService) {
+func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService, cfg *services.Config) {
 	mux.HandleFunc("/post/action", routes.LoggingMiddleware(logger, routes.RecoveryMiddleware(logger, routes.CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			routes.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")

@@ -7,21 +7,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"mthan-go-starter/app/config"
-	"mthan-go-starter/app/mods"
-	"mthan-go-starter/app/routes/api"
-	"mthan-go-starter/app/routes/api/hello"
-	"mthan-go-starter/app/routes/post/action"
+	"mthan-go-starter/app/mods/admin"
+	"mthan-go-starter/app/mods/client"
+	routes_api_hello "mthan-go-starter/app/routes/api/hello"
+	routes_api "mthan-go-starter/app/routes/api"
+	routes_pages_contact "mthan-go-starter/app/routes/pages/contact"
+	routes_pages "mthan-go-starter/app/routes/pages"
+	routes_post_action "mthan-go-starter/app/routes/post/action"
 	"mthan-go-starter/app/services"
 )
 
 func main() {
 	// 1. Load application configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := services.LoadConfig()
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
@@ -35,31 +36,22 @@ func main() {
 	svc := services.NewProcessService()
 	mux := http.NewServeMux()
 	
-	// Register individual route packages
-	api.Register(mux, svc, logger)
-	hello.Register(mux, svc, logger)
-	action.Register(mux, svc, logger)
-	
-	logger.Info("Admin Panel is not compiled in this build")
-
-	// Serve React client if enabled, otherwise register fallback landing page
-	if cfg.Client {
-		logger.Info("Serving client static files", "path", cfg.ClientBuildPath)
-		fs := http.Dir(cfg.ClientBuildPath)
-		fileServer := http.FileServer(fs)
-
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			f, err := fs.Open(r.URL.Path)
-			if err != nil {
-				// File does not exist, serve index.html for SPA routing fallback
-				http.ServeFile(w, r, filepath.Join(cfg.ClientBuildPath, "index.html"))
-				return
-			}
-			f.Close()
-			fileServer.ServeHTTP(w, r)
-		})
+	// Register individual route packages dynamically
+	routes_api_hello.Register(mux, svc, logger, cfg)
+	routes_api.Register(mux, svc, logger, cfg)
+	routes_post_action.Register(mux, svc, logger, cfg)
+	if cfg.AdminActive && cfg.AdminPath != "" && cfg.AdminUser != "" && cfg.AdminPass != "" {
+		admin.Register(mux, svc, logger, cfg)
 	} else {
-		mods.Register(mux, svc, logger)
+		logger.Info("Admin Panel is disabled (admin.active is false or missing credentials in config)")
+	}
+	// Serve React client if enabled, otherwise register dynamic pages, templates, or fallback landing page
+	if cfg.Client {
+		client.Register(mux, svc, logger, cfg)
+	} else {
+		// Register dynamic SSR HTML Page routes
+		routes_pages_contact.Register(mux, svc, logger, cfg)
+		routes_pages.Register(mux, svc, logger, cfg)
 	}
 
 	// 4. Setup HTTP Server

@@ -8,7 +8,7 @@ import (
 )
 
 // Register mounts the GET /api/hello route on the multiplexer.
-func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService) {
+func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService, cfg *services.Config) {
 	mux.HandleFunc("/api/hello", routes.LoggingMiddleware(logger, routes.RecoveryMiddleware(logger, routes.CORSMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			routes.SendError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")

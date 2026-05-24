@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ AppName }} - Dynamic Server Pages{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030712;
+            --card-bg: rgba(17, 24, 39, 0.4);
+            --border-color: rgba(75, 85, 99, 0.2);
+            --text-primary: #f9fafb;
+            --text-secondary: #9ca3af;
+            --accent-color: #3b82f6;
+            --accent-glow: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(3, 7, 18, 0) 70%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        .glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: var(--accent-glow);
+            pointer-events: none;
+            z-index: 1;
+        }
+        .glow-top { top: -10%; left: -10%; }
+        .glow-bottom { bottom: -10%; right: -10%; }
+
+        header {
+            width: 100%;
+            max-width: 1200px;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .brand-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+        }
+
+        nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        nav a:hover {
+            color: var(--text-primary);
+        }
+
+        main {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 800px;
+            padding: 3rem 2rem;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="glow glow-top"></div>
+    <div class="glow glow-bottom"></div>
+
+    <header>
+        <a href="/" class="brand">
+            <span class="brand-dot"></span>
+            {{ AppName }}
+        </a>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/contact">Contact</a>
+            <a href="/api/hello?name=Guest" target="_blank">Test API</a>
+            {% if AdminPath %}
+            <a href="{{ AdminPath }}" style="color: var(--accent-color);">Admin Panel</a>
+            {% endif %}
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer style="width: 100%; text-align: center; padding: 2rem; color: rgba(255, 255, 255, 0.2); font-size: 0.85rem; border-top: 1px solid var(--border-color); position: relative; z-index: 2;">
+        © 2026 {{ AppName }} {{ Version }} | Powered by Pongo2 Engine
+    </footer>
+</body>
+</html>

@@ -1,46 +1,47 @@
-import { useState, useEffect } from 'react';
-import { 
-  Database, 
-  Activity, 
-  Terminal, 
-  Settings, 
-  ShieldCheck, 
-  Server, 
-  Code2, 
-  Cpu, 
-  HardDrive, 
-  Layers, 
+import { useState, useEffect } from 'react'
+import {
+  Database,
+  Activity,
+  Terminal,
+  ShieldCheck,
+  Server,
+  Code2,
+  Cpu,
+  HardDrive,
+  Layers,
   Play,
   RotateCw
-} from 'lucide-react';
+} from 'lucide-react'
 
 interface RouteInfo {
-  path: string;
-  methods: string[];
-  description: string;
+  path: string
+  methods: string[]
+  description: string
 }
 
 interface LogEntry {
-  timestamp: string;
-  level: 'INFO' | 'WARN' | 'ERROR';
-  message: string;
+  timestamp: string
+  level: 'INFO' | 'WARN' | 'ERROR'
+  message: string
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'routes' | 'database' | 'logs'>('overview');
-  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('connected');
-  const [cpuUsage, setCpuUsage] = useState<number>(14);
-  const [memoryUsage, setMemoryUsage] = useState<number>(38);
-  const [telemetryLogs, setTelemetryLogs] = useState<LogEntry[]>([]);
-  const [isDiagnosticRunning, setIsDiagnosticRunning] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'routes' | 'database' | 'logs'>('overview')
+  const [dbStatus, setDbStatus] = useState<'connected' | 'disconnected'>('connected')
+  const [cpuUsage, setCpuUsage] = useState<number>(14)
+  const [memoryUsage, setMemoryUsage] = useState<number>(38)
+  const [telemetryLogs, setTelemetryLogs] = useState<LogEntry[]>([])
+  const [isDiagnosticRunning, setIsDiagnosticRunning] = useState(false)
+
+  const adminPath = (import.meta.env.VITE_ADMIN_PATH || '/admin').replace(/\/+$/, '')
 
   // Initial mock routes
   const routes: RouteInfo[] = [
     { path: '/api', methods: ['GET', 'POST'], description: 'Base API endpoint providing gateway status.' },
     { path: '/api/hello', methods: ['GET', 'POST'], description: 'Sample endpoint returning dynamic hello greetings.' },
     { path: '/post/action', methods: ['POST'], description: 'Core endpoint processing administrative & post events.' },
-    { path: '/admin', methods: ['GET'], description: 'Administrative control portal (Basic Auth Protected).' }
-  ];
+    { path: adminPath || '/admin', methods: ['GET'], description: 'Administrative control portal (Basic Auth Protected).' }
+  ]
 
   // Load initial logs
   useEffect(() => {
@@ -50,56 +51,56 @@ export default function App() {
       { timestamp: new Date(Date.now() - 250000).toLocaleTimeString(), level: 'INFO', message: 'Conditional client file server mapping resolved' },
       { timestamp: new Date(Date.now() - 200000).toLocaleTimeString(), level: 'INFO', message: 'CORS Preflight rules applied to /api/* and /post/*' },
       { timestamp: new Date(Date.now() - 150000).toLocaleTimeString(), level: 'WARN', message: 'High CPU load detected during client asset compilation' }
-    ];
-    setTelemetryLogs(initialLogs);
-  }, []);
+    ]
+    setTelemetryLogs(initialLogs)
+  }, [])
 
   // System metrics ticker
   useEffect(() => {
     const interval = setInterval(() => {
       setCpuUsage(prev => {
-        const change = Math.floor(Math.random() * 9) - 4; // -4% to +4%
-        const newVal = prev + change;
-        return Math.max(5, Math.min(95, newVal));
-      });
+        const change = Math.floor(Math.random() * 9) - 4 // -4% to +4%
+        const newVal = prev + change
+        return Math.max(5, Math.min(95, newVal))
+      })
       setMemoryUsage(prev => {
-        const change = Math.floor(Math.random() * 3) - 1; // -1% to +1%
-        const newVal = prev + change;
-        return Math.max(30, Math.min(60, newVal));
-      });
-    }, 3000);
+        const change = Math.floor(Math.random() * 3) - 1 // -1% to +1%
+        const newVal = prev + change
+        return Math.max(30, Math.min(60, newVal))
+      })
+    }, 3000)
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => clearInterval(interval)
+  }, [])
 
   // Trigger diagnostic test
   const runDiagnostics = () => {
-    setIsDiagnosticRunning(true);
-    
+    setIsDiagnosticRunning(true)
+
     // Add starting log
     const newLog: LogEntry = {
       timestamp: new Date().toLocaleTimeString(),
       level: 'INFO',
       message: 'Starting full system diagnostics check...'
-    };
-    setTelemetryLogs(prev => [newLog, ...prev]);
+    }
+    setTelemetryLogs(prev => [newLog, ...prev])
 
     setTimeout(() => {
-      setIsDiagnosticRunning(false);
-      setDbStatus('connected');
-      
+      setIsDiagnosticRunning(false)
+      setDbStatus('connected')
+
       const completeLog: LogEntry = {
         timestamp: new Date().toLocaleTimeString(),
         level: 'INFO',
         message: 'Diagnostics completed. SQLite pool verified. Memory leaks: None.'
-      };
-      setTelemetryLogs(prev => [completeLog, ...prev]);
-    }, 1500);
-  };
+      }
+      setTelemetryLogs(prev => [completeLog, ...prev])
+    }, 1500)
+  }
 
   return (
     <div className="flex min-height-screen bg-slate-950 text-slate-100 overflow-hidden" style={{ minHeight: '100vh' }}>
-      
+
       {/* Sidebar Navigation */}
       <aside className="w-64 border-r border-slate-800 bg-slate-900/50 backdrop-blur flex flex-col justify-between">
         <div>
@@ -116,28 +117,28 @@ export default function App() {
 
           {/* Navigation Links */}
           <nav className="p-4 space-y-1">
-            <button 
+            <button
               onClick={() => setActiveTab('overview')}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'overview' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'}`}
             >
               <Activity size={18} />
               Overview
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('routes')}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'routes' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'}`}
             >
               <Layers size={18} />
               Route Explorer
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('database')}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'database' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'}`}
             >
               <Database size={18} />
               Database Config
             </button>
-            <button 
+            <button
               onClick={() => setActiveTab('logs')}
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${activeTab === 'logs' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 border border-transparent'}`}
             >
@@ -171,7 +172,7 @@ export default function App() {
               <span className={`w-2.5 h-2.5 rounded-full ${dbStatus === 'connected' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/30' : 'bg-red-500 shadow-lg shadow-red-500/30'}`}></span>
               <span className="text-xs font-medium text-slate-400">DB Connectivity</span>
             </div>
-            <button 
+            <button
               disabled={isDiagnosticRunning}
               onClick={runDiagnostics}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-medium transition-all shadow-md shadow-sky-500/10 active:scale-95 disabled:opacity-50"
@@ -184,11 +185,11 @@ export default function App() {
 
         {/* Tab Contents */}
         <div className="p-8 flex-1 max-w-7xl w-full mx-auto space-y-6">
-          
+
           {/* Tab 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
+
               {/* Telemetry Card: CPU */}
               <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/30 backdrop-blur flex flex-col justify-between h-40">
                 <div className="flex justify-between items-start">
@@ -244,7 +245,7 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-4 rounded-lg bg-slate-950/40 border border-slate-900">
                     <span className="text-slate-500 text-xs">Admin Server Endpoint</span>
-                    <p className="font-mono text-slate-300 mt-0.5">/admin</p>
+                    <p className="font-mono text-slate-300 mt-0.5">{adminPath || '/admin'}</p>
                   </div>
                   <div className="p-4 rounded-lg bg-slate-950/40 border border-slate-900">
                     <span className="text-slate-500 text-xs">React UI Hosting</span>
@@ -268,21 +269,21 @@ export default function App() {
                   <p className="text-xs text-slate-500">Quickly toggle DB settings or trigger logging traces directly from the browser window.</p>
                 </div>
                 <div className="space-y-2 mt-4">
-                  <button 
+                  <button
                     onClick={() => setDbStatus(prev => prev === 'connected' ? 'disconnected' : 'connected')}
                     className="w-full py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 border border-slate-700 transition"
                   >
                     <RotateCw size={14} />
                     Toggle DB Pool Status
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       const triggerLog: LogEntry = {
                         timestamp: new Date().toLocaleTimeString(),
                         level: 'WARN',
                         message: 'Forced telemetry check initiated by administrator'
-                      };
-                      setTelemetryLogs(prev => [triggerLog, ...prev]);
+                      }
+                      setTelemetryLogs(prev => [triggerLog, ...prev])
                     }}
                     className="w-full py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 border border-slate-700 transition"
                   >
@@ -323,7 +324,7 @@ export default function App() {
                         </td>
                         <td className="px-6 py-4 text-slate-400">{route.description}</td>
                         <td className="px-6 py-4 text-slate-500 font-mono">
-                          {route.path === '/admin' ? 'app/mods/admin' : 'app/routes' + route.path}
+                          {route.path === adminPath ? 'app/mods/admin' : 'app/routes' + route.path}
                         </td>
                       </tr>
                     ))}
@@ -336,11 +337,11 @@ export default function App() {
           {/* Tab 3: DATABASE */}
           {activeTab === 'database' && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
+
               {/* Connection configuration */}
               <div className="p-6 rounded-xl border border-slate-800 bg-slate-900/20 space-y-4">
                 <h3 className="font-semibold text-sm tracking-wider uppercase text-slate-400">Driver Mapping</h3>
-                
+
                 <div className="space-y-3">
                   <div>
                     <label className="text-xs text-slate-500 block mb-1">Active Driver</label>
@@ -351,11 +352,11 @@ export default function App() {
                   </div>
                   <div>
                     <label className="text-xs text-slate-500 block mb-1">Connection DSN / URL string</label>
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value="storage/db.sqlite" 
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-300 font-mono outline-none" 
+                    <input
+                      type="text"
+                      readOnly
+                      value="storage/db.sqlite"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-sm text-slate-300 font-mono outline-none"
                     />
                     <span className="text-[10px] text-slate-500 block mt-1">If blank, default SQLite path is auto-mapped under ~/.mthan-app/storage/db.sqlite.</span>
                   </div>
@@ -400,7 +401,7 @@ export default function App() {
                     <span className="w-3 h-3 rounded-full bg-green-500"></span>
                     <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-2">Console Stream</span>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setTelemetryLogs([])}
                     className="px-2 py-1 rounded bg-slate-900 border border-slate-800 hover:bg-slate-800 text-[10px] text-slate-400 font-semibold transition"
                   >
@@ -432,5 +433,5 @@ export default function App() {
       </main>
 
     </div>
-  );
+  )
 }

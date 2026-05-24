@@ -1,4 +1,4 @@
-package config
+package services
 
 import (
 	"bufio"
@@ -169,7 +169,7 @@ func LoadConfig() (*Config, error) {
 	if isStandalone {
 		clientBuildPath = filepath.Join(exeDir, "client", "build")
 	} else {
-		clientBuildPath = filepath.Join(cwd, "client", "build")
+		clientBuildPath = filepath.Join(cwd, "app", "mods", "client", "build")
 	}
 
 	dbDriver := getEnv("DB_DRIVER", "sqlite")

@@ -9,11 +9,47 @@ cd "$ROOT_DIR"
 ACTION="${1:-dev}"
 
 generate_main() {
+	# Check if mods folder and main.go exist
+	HAS_MODS=false
+	if [ -d "app/mods" ] && [ -f "app/mods/main.go" ]; then
+		HAS_MODS=true
+	fi
+
 	# Check if admin module folder exists
 	HAS_ADMIN=false
-	if [ -d "app/mods/admin" ]; then
+	if [ "$HAS_MODS" = true ] && [ -d "app/mods/admin" ]; then
 		HAS_ADMIN=true
 	fi
+
+	# Check if client module folder exists
+	HAS_CLIENT=false
+	if [ "$HAS_MODS" = true ] && [ -d "app/mods/client" ]; then
+		HAS_CLIENT=true
+	fi
+
+	# Scan app/routes recursively for packages containing a Register function
+	ROUTE_DIRS=()
+	if [ -d "app/routes" ]; then
+		for file in $(find app/routes -type f -name "main.go" | sort); do
+			if grep -q "func Register" "$file"; then
+				dir=$(dirname "$file")
+				ROUTE_DIRS+=("$dir")
+			fi
+		done
+	fi
+
+	# Separate API/Action routes from Pages routes
+	API_ROUTE_DIRS=()
+	PAGES_ROUTE_DIRS=()
+	HAS_PAGES=false
+	for dir in "${ROUTE_DIRS[@]}"; do
+		if [[ "$dir" == app/routes/pages* ]]; then
+			PAGES_ROUTE_DIRS+=("$dir")
+			HAS_PAGES=true
+		else
+			API_ROUTE_DIRS+=("$dir")
+		fi
+	done
 
 	echo "Generating main.go..."
 
@@ -28,28 +64,35 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"mthan-go-starter/app/config"
-	"mthan-go-starter/app/mods"
 EOF
+
+	if [ "$HAS_MODS" = true ] && [ "$HAS_PAGES" = false ]; then
+		echo '	"mthan-go-starter/app/mods"' >> main.go
+	fi
 
 	if [ "$HAS_ADMIN" = true ]; then
 		echo '	"mthan-go-starter/app/mods/admin"' >> main.go
 	fi
 
+	if [ "$HAS_CLIENT" = true ]; then
+		echo '	"mthan-go-starter/app/mods/client"' >> main.go
+	fi
+
+	for dir in "${ROUTE_DIRS[@]}"; do
+		alias=$(echo "$dir" | sed 's|^app/||' | tr '/' '_')
+		echo "	$alias \"mthan-go-starter/$dir\"" >> main.go
+	done
+
 	cat << 'EOF' >> main.go
-	"mthan-go-starter/app/routes/api"
-	"mthan-go-starter/app/routes/api/hello"
-	"mthan-go-starter/app/routes/post/action"
 	"mthan-go-starter/app/services"
 )
 
 func main() {
 	// 1. Load application configuration
-	cfg, err := config.LoadConfig()
+	cfg, err := services.LoadConfig()
 	if err != nil {
 		fmt.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
@@ -63,12 +106,12 @@ func main() {
 	svc := services.NewProcessService()
 	mux := http.NewServeMux()
 	
-	// Register individual route packages
-	api.Register(mux, svc, logger)
-	hello.Register(mux, svc, logger)
-	action.Register(mux, svc, logger)
-	
+	// Register individual route packages dynamically
 EOF
+	for dir in "${API_ROUTE_DIRS[@]}"; do
+		alias=$(echo "$dir" | sed 's|^app/||' | tr '/' '_')
+		echo "	$alias.Register(mux, svc, logger, cfg)" >> main.go
+	done
 
 	if [ "$HAS_ADMIN" = true ]; then
 		cat << 'EOF' >> main.go
@@ -82,27 +125,104 @@ EOF
 		echo '	logger.Info("Admin Panel is not compiled in this build")' >> main.go
 	fi
 
-	cat << 'EOF' >> main.go
-
-	// Serve React client if enabled, otherwise register fallback landing page
+	if [ "$HAS_CLIENT" = true ]; then
+		cat << 'EOF' >> main.go
+	// Serve React client if enabled, otherwise register dynamic pages, templates, or fallback landing page
 	if cfg.Client {
-		logger.Info("Serving client static files", "path", cfg.ClientBuildPath)
-		fs := http.Dir(cfg.ClientBuildPath)
-		fileServer := http.FileServer(fs)
+		client.Register(mux, svc, logger, cfg)
+	} else {
+EOF
 
+		if [ "$HAS_PAGES" = true ]; then
+			echo '		// Register dynamic SSR HTML Page routes' >> main.go
+			for dir in "${PAGES_ROUTE_DIRS[@]}"; do
+				alias=$(echo "$dir" | sed 's|^app/||' | tr '/' '_')
+				echo "		$alias.Register(mux, svc, logger, cfg)" >> main.go
+			done
+		else
+			cat << 'EOF' >> main.go
+		// Check for templates/ folder fallback first
+		if _, err := os.Stat("templates"); err == nil {
+			logger.Info("Serving static HTML templates from templates/")
+			fs := http.Dir("templates")
+			fileServer := http.FileServer(fs)
+			mux.Handle("/", fileServer)
+		} else {
+EOF
+
+			if [ "$HAS_MODS" = true ]; then
+				cat << 'EOF' >> main.go
+			mods.Register(mux, svc, logger)
+EOF
+			else
+				cat << 'EOF' >> main.go
+			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/" {
+					http.NotFound(w, r)
+					return
+				}
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Write([]byte("<h1>Welcome to Mthan Go Starter Kit</h1><p>No modules are compiled. Serving API endpoints from routes instead.</p>"))
+			})
+EOF
+			fi
+
+			cat << 'EOF' >> main.go
+		}
+EOF
+		fi
+
+		cat << 'EOF' >> main.go
+	}
+EOF
+	else
+		cat << 'EOF' >> main.go
+	if cfg.Client {
+		logger.Warn("React client serving is enabled in config.yaml, but the client module is not compiled in this build")
+	}
+EOF
+
+		if [ "$HAS_PAGES" = true ]; then
+			echo '	// Register dynamic SSR HTML Page routes' >> main.go
+			for dir in "${PAGES_ROUTE_DIRS[@]}"; do
+				alias=$(echo "$dir" | sed 's|^app/||' | tr '/' '_')
+				echo "	$alias.Register(mux, svc, logger, cfg)" >> main.go
+			done
+		else
+			cat << 'EOF' >> main.go
+	// Check for templates/ folder fallback first
+	if _, err := os.Stat("templates"); err == nil {
+		logger.Info("Serving static HTML templates from templates/")
+		fs := http.Dir("templates")
+		fileServer := http.FileServer(fs)
+		mux.Handle("/", fileServer)
+	} else {
+EOF
+
+			if [ "$HAS_MODS" = true ]; then
+				cat << 'EOF' >> main.go
+		mods.Register(mux, svc, logger)
+EOF
+			else
+				cat << 'EOF' >> main.go
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			f, err := fs.Open(r.URL.Path)
-			if err != nil {
-				// File does not exist, serve index.html for SPA routing fallback
-				http.ServeFile(w, r, filepath.Join(cfg.ClientBuildPath, "index.html"))
+			if r.URL.Path != "/" {
+				http.NotFound(w, r)
 				return
 			}
-			f.Close()
-			fileServer.ServeHTTP(w, r)
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write([]byte("<h1>Welcome to Mthan Go Starter Kit</h1><p>No modules are compiled. Serving API endpoints from routes instead.</p>"))
 		})
-	} else {
-		mods.Register(mux, svc, logger)
+EOF
+			fi
+
+			cat << 'EOF' >> main.go
 	}
+EOF
+		fi
+	fi
+
+	cat << 'EOF' >> main.go
 
 	// 4. Setup HTTP Server
 	server := &http.Server{
@@ -163,11 +283,13 @@ case "$ACTION" in
 	dev)
 		echo "Starting application in development mode..."
 		
+		APP_DIR="app/mods/client"
+
 		# Warning message if client dependencies need to be installed
-		if [ -d "client" ] && [ ! -d "client/node_modules" ]; then
+		if [ -d "$APP_DIR" ] && [ ! -d "$APP_DIR/node_modules" ]; then
 			echo "------------------------------------------------------------------------"
-			echo "WARNING: client/node_modules is missing."
-			echo "Please run 'npm install' inside the 'client/' directory before launching dev."
+			echo "WARNING: $APP_DIR/node_modules is missing."
+			echo "Please run './scripts/client dev-app' or npm install inside the client directory."
 			echo "------------------------------------------------------------------------"
 		fi
 
@@ -178,9 +300,9 @@ case "$ACTION" in
 
 		# 2. Start React Vite server (if node_modules exists)
 		CLIENT_PID=""
-		if [ -d "client" ] && [ -d "client/node_modules" ]; then
+		if [ -d "$APP_DIR" ] && [ -d "$APP_DIR/node_modules" ]; then
 			echo "Starting React client dev server on port 3000..."
-			npm run dev --prefix client &
+			npm run dev --prefix "$APP_DIR" &
 			CLIENT_PID=$!
 		fi
 

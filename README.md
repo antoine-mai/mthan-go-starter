@@ -1,6 +1,6 @@
 # Mthan Go Starter Kit
 
-A high-performance Golang backend starter template integrated with a public React SPA client and a dedicated, isolated Admin Control Panel React client.
+A high-performance Golang backend starter template integrated with a public React SPA client, an isolated Admin Control Panel React client, and a Django/Jinja2-like Pongo2 SSR page templating engine.
 
 ---
 
@@ -9,23 +9,23 @@ A high-performance Golang backend starter template integrated with a public Reac
 ```text
 mthan-go-starter/
 ├── app/                     # Backend Source Code
-│   ├── config/              # Configuration module (YAML parser, path resolver)
-│   ├── mods/                # Modules
-│   ├── routes/              # Public API / Action endpoint controllers
+│   ├── mods/                # Self-contained modules (or plugins)
+│   │   ├── admin/           # Admin Panel Module (Go handler + React Client)
+│   │   └── client/          # Public React Client Module (Go handler + React Client)
+│   ├── routes/              # Public HTML pages, API endpoints, and Action controllers
 │   │   ├── api/             # Standard GET/POST API endpoints (e.g., /api/hello)
+│   │   ├── pages/           # Server-Side Rendered (SSR) HTML pages (using templates)
 │   │   ├── post/            # Action/Post same-origin controllers
 │   │   └── main.go          # Common HTTP middlewares (CORS, Logging, Recovery)
-│   └── services/            # Core business logic layer and shared services
-├── client/                  # Main Public React SPA Client
-│   ├── src/                 # Client React source code
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.ts
+│   └── services/            # Core business logic, configuration loader, and shared services
 ├── scripts/                 # Developer Utility Bash Scripts
-│   ├── app                  # Unified developer tool supporting {dev, run, test, build}
-│   ├── client               # Build / Run developer tasks for the Public client
-│   └── admin                # Build / Run developer tasks for the Admin client
-├── config.yaml              # Local development configuration template
+│   ├── app                  # Unified app runner supporting {dev, run, test, build}
+│   ├── client               # Unified client compiler supporting {build-app, build-admin, dev-app, dev-admin}
+│   └── push                 # Utility script to stage, commit, and push modifications
+├── templates/               # HTML templates for server pages
+│   ├── pages/               # Individual content templates (e.g. home.html, contact.html)
+│   └── base.html            # Global shared layout block base template
+├── config.yaml              # Local development configuration file
 ├── go.mod                   # Go module definitions
 ├── main.go                  # Main entry point bootstrapping the application
 └── README.md                # Project documentation
@@ -76,7 +76,46 @@ The application automatically resolves path destinations depending on the runnin
 
 ---
 
-## 🛠️ Developer Workflows
+## 🧩 Architectural Standards & Rules
+
+### 1. Separation of Concerns
+* **`routes/` Layer**: Responsible **only** for HTTP routing, request deserialization, payload validation, and response serialization. No business processing or domain logic is allowed here. Located in `app/routes/`.
+* **`services/` Layer**: Responsible for all business processes, operations, database validation, and data logic. Handlers in the `routes/` layer delegate execution to this layer. Logging is also implemented as a service (`LoggerService` inside the `app/services/` layer) to allow clean dependency injection.
+* **`mods/` Layer**: Houses self-contained plug-and-play features or larger optional application parts (like React clients, admin panel handlers, etc.).
+
+### 2. Routing Conventions & Rules
+* **`/api/...`**: Used for public backend APIs (defined in `app/routes/api/`).
+* **`/post/...`**: Used for same-origin action/POST endpoints (defined in `app/routes/post/`).
+* **SSR Pages**: Dynamic server-side page endpoints are defined in `app/routes/pages/` and rendered using template files located in `templates/pages/` inheriting from `templates/base.html` using Pongo2.
+* **Fallback Routing Rule**:
+  * If `client: true` is configured, the server serves the compiled React public client SPA assets from `app/mods/client/build/` at the root route `/` (with SPA fallback routing).
+  * If `client: false` and `templates/` folder is present, the server renders Pongo2 HTML templates for page routes.
+  * If templates are missing and client is false, the server falls back to mounting a default landing page handler from `app/mods/main.go`.
+
+### 3. Avoiding Circular Dependencies
+* The base `routes` package (`app/routes/main.go`) contains shared HTTP utilities (JSON response helpers, logging/recovery middlewares) and does **not** import any sub-routes.
+* Sub-route packages (e.g. `app/routes/api/hello`, `app/routes/pages/contact`) import the base `routes` package to use the shared middlewares and helpers.
+* The application entrypoint (`main.go`) imports all sub-routers and registers them sequentially on the HTTP multiplexer.
+
+---
+
+## 🧩 Module Development Guidelines
+
+When developing modules in `app/mods/`, you can structure them in two ways depending on their purpose and lifecycle:
+
+### 1. Self-Contained Modules (Recommended for Plug-and-Play features)
+* **Design**: The module defines its own handlers and registers its routes directly.
+* **Benefits**: **Complete isolation**. The module can be deleted at any time, and the code-generation compilation script (`./scripts/app build` or `./scripts/app dev`) will automatically discover the change and compile cleanly without leaving broken references in the core routes.
+* **Example**: The `admin` module is a self-contained module.
+
+### 2. Process/Service Modules (Recommended for Core business logic)
+* **Design**: The module contains purely business logic (e.g., database transactions, calculations) and exposes functions. The core routes in `app/routes/` import the module and invoke these functions to handle API requests.
+* **Benefits**: Centralized control of all API endpoints under the `app/routes/` directory.
+* **Trade-off**: Deleting the module will require manually removing its import statements and calls from `app/routes/` to avoid compilation errors.
+
+---
+
+## 🛠️ Developer Workflows & Commands
 
 Manage building and running modules using the provided scripts:
 
@@ -84,12 +123,11 @@ Manage building and running modules using the provided scripts:
   ```bash
   ./scripts/app dev
   ```
-* **Build / Run Public React Client**:
-  * Dev: `./scripts/client dev` (Vite dev server on port `3000`)
-  * Build: `./scripts/client build` (Compiles assets into `client/build/`)
-* **Build / Run Admin React Client**:
-  * Dev: `./scripts/admin dev` (Vite dev server on port `3001`)
-  * Build: `./scripts/admin build` (Compiles assets into `app/mods/admin/client/build/`)
+* **Build / Run React Clients**:
+  * Build Public Client: `./scripts/client build-app` (Compiles assets to `app/mods/client/build/`)
+  * Build Admin Client: `./scripts/client build-admin` (Compiles assets to `app/mods/admin/build/`)
+  * Dev Public Client: `./scripts/client dev-app` (Vite dev server on port `3000`)
+  * Dev Admin Client: `./scripts/client dev-admin` (Vite dev server on port `3001`)
 * **Compile Go Backend**:
   ```bash
   ./scripts/app build
@@ -97,6 +135,10 @@ Manage building and running modules using the provided scripts:
 * **Run Go Backend Binary**:
   ```bash
   ./scripts/app run
+  ```
+  Pass flags to the executable directly. For example, to run in standalone mode:
+  ```bash
+  ./scripts/app run --standalone
   ```
 * **Run Go Tests**:
   ```bash

@@ -7,13 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"mthan-go-starter/app/config"
 	"mthan-go-starter/app/routes"
 	"mthan-go-starter/app/services"
 )
 
 // Register mounts the admin panel route with basic authentication.
-func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService, cfg *config.Config) {
+func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services.LoggerService, cfg *services.Config) {
 	adminPath := cfg.AdminPath
 	// Ensure it starts with /
 	if adminPath[0] != '/' {
@@ -22,7 +21,7 @@ func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services
 
 	logger.Info("Activating Admin Panel", "path", adminPath)
 
-	adminBuildPath := filepath.Join("app", "mods", "admin", "client", "build")
+	adminBuildPath := filepath.Join("app", "mods", "admin", "build")
 
 	// Ensure path ends with / for sub-route serving
 	regPath := adminPath
@@ -54,7 +53,7 @@ func Register(mux *http.ServeMux, svc *services.ProcessService, logger *services
         <h1>Admin Portal Build Pending</h1>
         <p>The admin panel folder exists, but the production build cannot be found.</p>
         <p>Please compile the admin React client by executing:</p>
-        <p><code>./scripts/admin build</code></p>
+        <p><code>./scripts/client build-admin</code></p>
     </div>
 </body>
 </html>
