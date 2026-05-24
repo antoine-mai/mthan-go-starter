@@ -41,6 +41,9 @@ func (s *DatabaseService) Connect() (*sql.DB, error) {
 	switch s.cfg.DbDriver {
 	case "postgres":
 		driverName = "postgres"
+		if s.cfg.DbUrl == "" {
+			return nil, fmt.Errorf("postgres database driver requires a database URL to be configured in config.yaml (database.url)")
+		}
 		s.logger.Info("Connecting to Postgres database", "url", s.cfg.DbUrl)
 	case "sqlite":
 		fallthrough
