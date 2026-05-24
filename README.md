@@ -1,4 +1,4 @@
-# Mthan Go Starter Kit
+# MTHAN Go Starter Kit
 
 A high-performance Golang backend starter template integrated with a public React SPA client, an isolated Admin Control Panel React client, and a Django/Jinja2-like Pongo2 SSR page templating engine.
 
