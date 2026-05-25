@@ -9,21 +9,34 @@ cd "$ROOT_DIR"
 ACTION="${1:-dev}"
 
 generate_main() {
+	# Auto-create config/mods.yaml if not present
+	if [ ! -f "config/mods.yaml" ]; then
+		mkdir -p config
+		cat << 'EOF' > config/mods.yaml
+# Module compilation configuration
+# Set true to enable/compile the module, false to exclude it.
+modules:
+  admin: true
+  client: true
+EOF
+		echo "Created default config/mods.yaml"
+	fi
+
 	# Check if mods folder and main.go exist
 	HAS_MODS=false
 	if [ -d "app/mods" ] && [ -f "app/mods/main.go" ]; then
 		HAS_MODS=true
 	fi
 
-	# Check if admin module folder exists
+	# Check if admin module folder exists and is active in mods.yaml
 	HAS_ADMIN=false
-	if [ "$HAS_MODS" = true ] && [ -d "app/mods/admin" ]; then
+	if [ "$HAS_MODS" = true ] && [ -d "app/mods/admin" ] && grep -A 10 "modules:" config/mods.yaml | grep "admin:" | grep -q "true"; then
 		HAS_ADMIN=true
 	fi
 
-	# Check if client module folder exists
+	# Check if client module folder exists and is active in mods.yaml
 	HAS_CLIENT=false
-	if [ "$HAS_MODS" = true ] && [ -d "app/mods/client" ]; then
+	if [ "$HAS_MODS" = true ] && [ -d "app/mods/client" ] && grep -A 10 "modules:" config/mods.yaml | grep "client:" | grep -q "true"; then
 		HAS_CLIENT=true
 	fi
 
@@ -186,7 +199,7 @@ EOF
 	else
 		cat << 'EOF' >> main.go
 	if cfg.Client {
-		logger.Warn("React client serving is enabled in config.yaml, but the client module is not compiled in this build")
+		logger.Warn("React client serving is enabled in config/config.yaml, but the client module is not compiled in this build")
 	}
 EOF
 

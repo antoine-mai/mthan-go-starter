@@ -6,11 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Extract admin path prefix from config.yaml
+# Extract admin path prefix from config/config.yaml
 ADMIN_PATH=""
-if [ -f "config.yaml" ]; then
+if [ -f "config/config.yaml" ]; then
 	# Extract from admin section, path line
-	ADMIN_PATH=$(grep -A 10 "admin:" config.yaml | grep "path:" | head -n 1 | cut -d ':' -f2 | tr -d ' "' | tr -d "'" || true)
+	ADMIN_PATH=$(grep -A 10 "admin:" config/config.yaml | grep "path:" | head -n 1 | cut -d ':' -f2 | tr -d ' "' | tr -d "'" || true)
 fi
 # Default to /admin if not found or empty
 if [ -z "$ADMIN_PATH" ]; then

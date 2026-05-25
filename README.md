@@ -25,7 +25,8 @@ mthan-go-starter/
 ├── templates/               # HTML templates for server pages
 │   ├── pages/               # Individual content templates (e.g. home.html, contact.html)
 │   └── base.html            # Global shared layout block base template
-├── config.yaml              # Local development configuration file
+├── config/                  # Configuration directory
+│   └── config.yaml          # Local development configuration file
 ├── go.mod                   # Go module definitions
 ├── main.go                  # Main entry point bootstrapping the application
 └── README.md                # Project documentation
@@ -33,9 +34,9 @@ mthan-go-starter/
 
 ---
 
-## ⚙️ Configuration (`config.yaml`)
+## ⚙️ Configuration (`config/config.yaml`)
 
-The project uses a structured `config.yaml` file to configure all parameters:
+The project uses a structured `config/config.yaml` file to configure all parameters:
 
 ```yaml
 app:
@@ -65,7 +66,7 @@ admin:
 The application automatically resolves path destinations depending on the running environment:
 
 1. **Local Development Mode** (automatically detected when `go.mod` is present in the current working directory):
-   * Configuration is read directly from `./config.yaml` at the root project folder.
+   * Configuration is read directly from `config/config.yaml` at the root project folder.
    * Data storage directories are mapped to `./storage/`.
 2. **Standalone Mode** (triggered by launching the compiled binary with `-standalone` or `--standalone` flags):
    * Configuration is read from `config/config.yaml` next to the executable.

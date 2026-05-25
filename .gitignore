@@ -27,6 +27,7 @@ go.work.sum
 # Config files
 .env
 config/config.yaml
+config/mods.yaml
 
 # Storage folder
 storage/

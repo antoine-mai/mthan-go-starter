@@ -98,9 +98,9 @@ func LoadConfig() (*Config, error) {
 	var readErr error
 
 	// Try reading CWD template first, then exeDir template
-	templateData, readErr = os.ReadFile(filepath.Join(cwd, "config.yaml"))
+	templateData, readErr = os.ReadFile(filepath.Join(cwd, "config", "config.yaml"))
 	if readErr != nil {
-		templateData, readErr = os.ReadFile(filepath.Join(exeDir, "config.yaml"))
+		templateData, readErr = os.ReadFile(filepath.Join(exeDir, "config", "config.yaml"))
 	}
 
 	if readErr == nil {
@@ -115,8 +115,8 @@ func LoadConfig() (*Config, error) {
 	var storageDirPath string
 
 	if isDev {
-		// Local Dev Mode: directly use config.yaml in workspace root and storage/ in workspace root
-		configFilePath = filepath.Join(cwd, "config.yaml")
+		// Local Dev Mode: directly use config/config.yaml in workspace root and storage/ in workspace root
+		configFilePath = filepath.Join(cwd, "config", "config.yaml")
 		storageDirPath = filepath.Join(cwd, "storage")
 	} else if isStandalone || runtime.GOOS != "linux" {
 		// Standalone Mode
